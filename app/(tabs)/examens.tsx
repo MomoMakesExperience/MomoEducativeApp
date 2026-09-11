@@ -1,7 +1,9 @@
 import React, { useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Search, Plus, Award, BookOpen, CheckSquare, Check, Calendar, Clock, Bell } from 'lucide-react-native';
+import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
+import Animated, { useAnimatedStyle, type SharedValue } from 'react-native-reanimated';
+import { Search, Plus, Award, BookOpen, CheckSquare, Check, Calendar, Clock, Bell, Trash2 } from 'lucide-react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useTheme } from '@/theme/ThemeProvider';
 import { fontFamily, radius, typeColors } from '@/theme/tokens';
@@ -29,10 +31,68 @@ const ALERTE_LABEL: Record<AlerteOption, string> = {
   jour_j: '1h avant',
 };
 
-function ExamenRow({ examen }: { examen: Examen }) {
+function DeleteAction({ progress, onPress }: { progress: SharedValue<number>; onPress: () => void }) {
+  const style = useAnimatedStyle(() => ({
+    transform: [{ scale: Math.min(progress.value, 1) }],
+  }));
+  return (
+    <Pressable onPress={onPress} style={{ justifyContent: 'center', paddingHorizontal: 6 }}>
+      <Animated.View
+        style={[
+          {
+            width: 56,
+            height: 56,
+            borderRadius: 18,
+            backgroundColor: '#EF4444',
+            alignItems: 'center',
+            justifyContent: 'center',
+          },
+          style,
+        ]}
+      >
+        <Trash2 size={20} color="#fff" strokeWidth={1.8} />
+      </Animated.View>
+    </Pressable>
+  );
+}
+
+function DoneAction({ progress, onPress }: { progress: SharedValue<number>; onPress: () => void }) {
+  const style = useAnimatedStyle(() => ({
+    transform: [{ scale: Math.min(progress.value, 1) }],
+  }));
+  return (
+    <Pressable onPress={onPress} style={{ justifyContent: 'center', paddingHorizontal: 6 }}>
+      <Animated.View
+        style={[
+          {
+            width: 56,
+            height: 56,
+            borderRadius: 18,
+            backgroundColor: '#0E9B7A',
+            alignItems: 'center',
+            justifyContent: 'center',
+          },
+          style,
+        ]}
+      >
+        <Check size={22} color="#fff" strokeWidth={2.4} />
+      </Animated.View>
+    </Pressable>
+  );
+}
+
+function ExamenRow({
+  examen,
+  onDelete,
+  onMarkDone,
+}: {
+  examen: Examen;
+  onDelete: () => void;
+  onMarkDone: () => void;
+}) {
   const Icon = TYPE_ICON[examen.type];
   const bg = typeColors[examen.type];
-  return (
+  const row = (
     <View
       style={{
         backgroundColor: bg,
@@ -80,6 +140,22 @@ function ExamenRow({ examen }: { examen: Examen }) {
       </View>
     </View>
   );
+
+  return (
+    <Swipeable
+      friction={2}
+      rightThreshold={40}
+      leftThreshold={40}
+      renderRightActions={(progress: SharedValue<number>) => <DeleteAction progress={progress} onPress={onDelete} />}
+      renderLeftActions={
+        examen.statut === 'upcoming'
+          ? (progress: SharedValue<number>) => <DoneAction progress={progress} onPress={onMarkDone} />
+          : undefined
+      }
+    >
+      {row}
+    </Swipeable>
+  );
 }
 
 export default function Examens() {
@@ -87,10 +163,15 @@ export default function Examens() {
   const insets = useSafeAreaInsets();
   const examens = useAppStore((s) => s.examens);
   const addExamen = useAppStore((s) => s.addExamen);
+  const removeExamen = useAppStore((s) => s.removeExamen);
+  const markExamenDone = useAppStore((s) => s.markExamenDone);
+  const setExamenNoteStore = useAppStore((s) => s.setExamenNote);
 
   const [tab, setTab] = useState<'passe' | 'futur'>('futur');
   const [query, setQuery] = useState('');
   const [showAdd, setShowAdd] = useState(false);
+  const [noteTarget, setNoteTarget] = useState<Examen | null>(null);
+  const [noteInput, setNoteInput] = useState('');
 
   const [titre, setTitre] = useState('');
   const [type, setType] = useState<ExamenType>('exam');
@@ -170,7 +251,21 @@ export default function Examens() {
             }
           />
         ) : (
-          filtered.map((e) => <ExamenRow key={e.id} examen={e} />)
+          filtered.map((e) => (
+            <ExamenRow
+              key={e.id}
+              examen={e}
+              onDelete={() => {
+                haptics.medium();
+                removeExamen(e.id);
+              }}
+              onMarkDone={() => {
+                haptics.selection();
+                setNoteInput('');
+                setNoteTarget(e);
+              }}
+            />
+          ))
         )}
       </ScrollView>
 
@@ -335,6 +430,44 @@ export default function Examens() {
           >
             Ajouter
           </Text>
+        </Pressable>
+      </BottomSheet>
+
+      <BottomSheet visible={!!noteTarget} onClose={() => setNoteTarget(null)}>
+        <Text style={{ fontFamily: fontFamily.headingBold, fontSize: 16, color: theme.textPrimary, textAlign: 'center' }}>
+          Marquer comme terminé
+        </Text>
+        <Text style={{ fontFamily: fontFamily.body, fontSize: 13, color: theme.textSecondary, textAlign: 'center' }}>
+          {noteTarget?.titre}
+        </Text>
+        <View style={{ backgroundColor: theme.card, borderRadius: 18, padding: 14, gap: 4 }}>
+          <Text style={{ fontFamily: fontFamily.bodySemibold, fontSize: 11, color: theme.textSecondary }}>
+            Note obtenue (optionnel)
+          </Text>
+          <TextInput
+            value={noteInput}
+            onChangeText={setNoteInput}
+            placeholder="ex. 16"
+            keyboardType="numeric"
+            placeholderTextColor={theme.textTertiary}
+            style={{ fontFamily: fontFamily.headingBold, fontSize: 18, color: theme.textPrimary }}
+          />
+        </View>
+        <Pressable
+          onPress={async () => {
+            if (!noteTarget) return;
+            const parsed = parseFloat(noteInput.replace(',', '.'));
+            if (!Number.isNaN(parsed)) {
+              await setExamenNoteStore(noteTarget.id, parsed);
+            } else {
+              await markExamenDone(noteTarget.id);
+            }
+            haptics.success();
+            setNoteTarget(null);
+          }}
+          style={{ backgroundColor: theme.accent, paddingVertical: 15, borderRadius: radius.pill, alignItems: 'center' }}
+        >
+          <Text style={{ fontFamily: fontFamily.headingBold, fontSize: 15, color: '#fff' }}>Valider</Text>
         </Pressable>
       </BottomSheet>
     </View>

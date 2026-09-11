@@ -10,6 +10,7 @@ import { useAppStore } from '@/state/useAppStore';
 import { Card } from '@/components/Card';
 import { EmptyState } from '@/components/EmptyState';
 import { BottomSheet } from '@/components/BottomSheet';
+import { PressableScale } from '@/components/PressableScale';
 import { daysLeft, countdownLabel, todayIso } from '@/lib/date';
 import { computeBulletin } from '@/features/bulletin/calc';
 import { haptics } from '@/lib/haptics';
@@ -123,7 +124,7 @@ export default function Accueil() {
       </View>
 
       {nextExamen ? (
-        <Pressable onPress={() => router.push('/(tabs)/examens')}>
+        <PressableScale onPress={() => router.push('/(tabs)/examens')}>
           <Card color={theme.accent} style={[shadow.accent(theme.accent), { gap: 10 }]}>
             <Text style={{ fontFamily: fontFamily.bodySemibold, fontSize: 13, color: 'rgba(255,255,255,0.85)' }}>
               Prochain examen
@@ -138,7 +139,7 @@ export default function Accueil() {
               {countdownLabel(nextExamen.dateIso)}
             </Text>
           </Card>
-        </Pressable>
+        </PressableScale>
       ) : (
         <Card>
           <EmptyState title="Aucun examen à venir" subtitle="Ajoute ton premier examen depuis l'onglet Examens." />
@@ -146,23 +147,25 @@ export default function Accueil() {
       )}
 
       <View style={{ flexDirection: 'row', gap: 10 }}>
-        <Pressable style={{ flex: 1 }} onPress={() => router.push('/bulletin')}>
+        <PressableScale style={{ flex: 1 }} onPress={() => router.push('/bulletin')}>
           <Card style={{ alignItems: 'center', gap: 4 }}>
             <Text style={{ fontFamily: fontFamily.headingBold, fontSize: 20, color: theme.textPrimary }}>
               {bulletin.moyenneGenerale !== null ? bulletin.moyenneGenerale.toFixed(2) : '—'}
             </Text>
             <Text style={{ fontFamily: fontFamily.body, fontSize: 11, color: theme.textSecondary }}>Moyenne</Text>
           </Card>
-        </Pressable>
-        <Card style={{ flex: 1, alignItems: 'center', gap: 4 }}>
-          <Text style={{ fontFamily: fontFamily.headingBold, fontSize: 20, color: theme.textPrimary }}>
-            {taches.filter((t) => !t.fait).length}
-          </Text>
-          <Text style={{ fontFamily: fontFamily.body, fontSize: 11, color: theme.textSecondary }}>
-            Tâches du jour
-          </Text>
-        </Card>
-        <Pressable style={{ flex: 1 }} onPress={() => router.push('/focus')}>
+        </PressableScale>
+        <View style={{ flex: 1 }}>
+          <Card style={{ alignItems: 'center', gap: 4 }}>
+            <Text style={{ fontFamily: fontFamily.headingBold, fontSize: 20, color: theme.textPrimary }}>
+              {taches.filter((t) => !t.fait).length}
+            </Text>
+            <Text style={{ fontFamily: fontFamily.body, fontSize: 11, color: theme.textSecondary }}>
+              Tâches du jour
+            </Text>
+          </Card>
+        </View>
+        <PressableScale style={{ flex: 1 }} onPress={() => router.push('/focus')}>
           <Card style={{ alignItems: 'center', gap: 4 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
               <Flame size={16} color={theme.accent} />
@@ -174,7 +177,7 @@ export default function Accueil() {
               Streak focus · {sessionsToday} auj.
             </Text>
           </Card>
-        </Pressable>
+        </PressableScale>
       </View>
 
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 6 }}>

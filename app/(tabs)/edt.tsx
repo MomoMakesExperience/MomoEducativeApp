@@ -29,11 +29,24 @@ export default function EDT() {
   const [overview, setOverview] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
 
+  const [matiereId, setMatiereId] = useState<string | null>(null);
   const [titre, setTitre] = useState('');
   const [salle, setSalle] = useState('');
   const [heureDebut, setHeureDebut] = useState('08:00');
   const [duree, setDuree] = useState('60');
   const [couleur, setCouleur] = useState('#1E90FF');
+
+  const pickMatiere = (id: string | null) => {
+    haptics.selection();
+    setMatiereId(id);
+    if (id) {
+      const m = matieres.find((mm) => mm.id === id);
+      if (m) {
+        setTitre(m.nom);
+        setCouleur(m.couleur);
+      }
+    }
+  };
 
   const coursDuJour = useMemo(
     () => cours.filter((c) => c.jour === day).sort((a, b) => a.heureDebut.localeCompare(b.heureDebut)),
@@ -49,10 +62,13 @@ export default function EDT() {
       titre: titre.trim(),
       salle: salle.trim(),
       couleur,
+      matiereId,
     });
     haptics.success();
     setTitre('');
     setSalle('');
+    setMatiereId(null);
+    setCouleur('#1E90FF');
     setShowAdd(false);
   };
 
@@ -241,6 +257,61 @@ export default function EDT() {
         <Text style={{ fontFamily: fontFamily.headingBold, fontSize: 16, color: theme.textPrimary, textAlign: 'center' }}>
           Ajouter un cours ({day})
         </Text>
+
+        {matieres.length > 0 && (
+          <View style={{ gap: 8 }}>
+            <Text style={{ fontFamily: fontFamily.bodySemibold, fontSize: 11, color: theme.textSecondary }}>
+              Matière
+            </Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+              <Pressable
+                onPress={() => pickMatiere(null)}
+                style={{
+                  paddingHorizontal: 14,
+                  paddingVertical: 8,
+                  borderRadius: radius.pill,
+                  backgroundColor: matiereId === null ? theme.textPrimary : theme.card,
+                }}
+              >
+                <Text
+                  style={{
+                    fontFamily: fontFamily.headingBold,
+                    fontSize: 12,
+                    color: matiereId === null ? theme.bg : theme.textPrimary,
+                  }}
+                >
+                  Cours libre
+                </Text>
+              </Pressable>
+              {matieres.map((m) => {
+                const active = matiereId === m.id;
+                return (
+                  <Pressable
+                    key={m.id}
+                    onPress={() => pickMatiere(m.id)}
+                    style={{
+                      paddingHorizontal: 14,
+                      paddingVertical: 8,
+                      borderRadius: radius.pill,
+                      backgroundColor: active ? m.couleur : theme.card,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontFamily: fontFamily.headingBold,
+                        fontSize: 12,
+                        color: active ? '#fff' : theme.textPrimary,
+                      }}
+                    >
+                      {m.nom}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+        )}
+
         <View style={{ backgroundColor: theme.card, borderRadius: 18, padding: 14, gap: 4 }}>
           <Text style={{ fontFamily: fontFamily.bodySemibold, fontSize: 11, color: theme.textSecondary }}>Titre</Text>
           <TextInput
