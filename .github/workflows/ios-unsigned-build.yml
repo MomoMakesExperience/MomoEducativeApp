@@ -47,14 +47,7 @@ jobs:
           # which sorts before MOMO alphabetically) — pick the app's own scheme, not
           # just the first one in the list, or we silently build a dependency instead
           # of the app itself.
-          SCHEME=$(xcodebuild -list -workspace "$WORKSPACE" -json | python3 -c "
-import json, sys
-schemes = json.load(sys.stdin)['workspace']['schemes']
-preferred = [s for s in schemes if s == 'MOMO']
-if not preferred:
-    preferred = [s for s in schemes if 'pods' not in s.lower()]
-print(preferred[0] if preferred else schemes[0])
-")
+          SCHEME=$(xcodebuild -list -workspace "$WORKSPACE" -json | python3 -c "import json,sys; d=json.load(sys.stdin)['workspace']['schemes']; p=[s for s in d if s=='MOMO'] or [s for s in d if 'pods' not in s.lower()] or d; print(p[0])")
           echo "workspace=$WORKSPACE" >> "$GITHUB_OUTPUT"
           echo "scheme=$SCHEME" >> "$GITHUB_OUTPUT"
           echo "Workspace: $WORKSPACE / Selected scheme: $SCHEME"
