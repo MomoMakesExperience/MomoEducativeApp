@@ -19,14 +19,16 @@ jobs:
       - name: List available Xcode versions
         run: ls /Applications | grep -i xcode
 
-      - name: Select Xcode 16.2
+      - name: Select Xcode 26.0
         uses: maxim-lobanov/setup-xcode@v1
         with:
-          # "latest-stable" resolved to Xcode 26.3 on this runner, which is too
-          # new: its stricter Swift/C++ interop diagnostics break compilation of
-          # expo-modules-jsi's ObjC++ headers. Pin an older, known-good Xcode
-          # that still satisfies React Native 0.86's >=16.1 requirement.
-          xcode-version: "16.2"
+          # Xcode 16.2 fails: expo-modules-jsi's SwiftPM package requires
+          # swift-tools-version 6.2, only available from Xcode 26+.
+          # "latest-stable" (26.3) fails differently: its clang is too strict
+          # for expo-modules-jsi's ObjC++ headers (RuntimeScheduler.h). Try the
+          # earliest Xcode 26.x release, which should have Swift 6.2 without
+          # that later regression.
+          xcode-version: "26.0"
 
       - name: Setup Node
         uses: actions/setup-node@v4
