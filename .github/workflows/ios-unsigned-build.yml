@@ -46,15 +46,15 @@ jobs:
           echo "scheme=$SCHEME" >> "$GITHUB_OUTPUT"
           echo "Workspace: $WORKSPACE / Scheme: $SCHEME"
 
-      - name: Archive (unsigned)
+      - name: Build (unsigned)
         working-directory: ios
         run: |
-          xcodebuild archive \
+          xcodebuild build \
             -workspace "${{ steps.xcinfo.outputs.workspace }}" \
             -scheme "${{ steps.xcinfo.outputs.scheme }}" \
             -configuration Release \
             -sdk iphoneos \
-            -archivePath "$PWD/build/App.xcarchive" \
+            -derivedDataPath "$PWD/build/DerivedData" \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
@@ -63,7 +63,14 @@ jobs:
       - name: Package unsigned .ipa
         working-directory: ios
         run: |
-          APP_PATH=$(find build/App.xcarchive/Products/Applications -maxdepth 1 -iname "*.app" | head -n 1)
+          echo "Looking for .app bundle..."
+          find build/DerivedData/Build/Products -maxdepth 2 -iname "*.app"
+          APP_PATH=$(find build/DerivedData/Build/Products -maxdepth 2 -iname "*.app" | head -n 1)
+          if [ -z "$APP_PATH" ]; then
+            echo "No .app bundle found, listing Products dir:"
+            find build/DerivedData/Build/Products
+            exit 1
+          fi
           mkdir -p Payload
           cp -r "$APP_PATH" Payload/
           zip -r -y MOMO-unsigned.ipa Payload
