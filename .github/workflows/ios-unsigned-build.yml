@@ -1,0 +1,73 @@
+name: Build unsigned iOS .ipa
+
+# Manual trigger only: go to the Actions tab on GitHub, pick this workflow,
+# click "Run workflow". Produces an UNSIGNED .ipa artifact meant to be
+# signed and installed locally with Sideloadly (or AltStore) using a free
+# Apple ID — there is no way to get a device-installable iOS build without
+# either an Apple Developer Program membership or this kind of local
+# resigning step.
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps
+
+      - name: Prebuild native iOS project
+        run: npx expo prebuild --platform ios --clean --no-install
+
+      - name: Install CocoaPods dependencies
+        working-directory: ios
+        run: pod install
+
+      - name: Find workspace and scheme
+        id: xcinfo
+        working-directory: ios
+        run: |
+          WORKSPACE=$(ls -d *.xcworkspace | head -n 1)
+          SCHEME=$(xcodebuild -list -workspace "$WORKSPACE" -json | python3 -c "import json,sys; print(json.load(sys.stdin)['workspace']['schemes'][0])")
+          echo "workspace=$WORKSPACE" >> "$GITHUB_OUTPUT"
+          echo "scheme=$SCHEME" >> "$GITHUB_OUTPUT"
+          echo "Workspace: $WORKSPACE / Scheme: $SCHEME"
+
+      - name: Archive (unsigned)
+        working-directory: ios
+        run: |
+          xcodebuild archive \
+            -workspace "${{ steps.xcinfo.outputs.workspace }}" \
+            -scheme "${{ steps.xcinfo.outputs.scheme }}" \
+            -configuration Release \
+            -sdk iphoneos \
+            -archivePath "$PWD/build/App.xcarchive" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            AD_HOC_CODE_SIGNING_ALLOWED=YES
+
+      - name: Package unsigned .ipa
+        working-directory: ios
+        run: |
+          APP_PATH=$(find build/App.xcarchive/Products/Applications -maxdepth 1 -iname "*.app" | head -n 1)
+          mkdir -p Payload
+          cp -r "$APP_PATH" Payload/
+          zip -r -y MOMO-unsigned.ipa Payload
+          mkdir -p "$GITHUB_WORKSPACE/out"
+          cp MOMO-unsigned.ipa "$GITHUB_WORKSPACE/out/"
+
+      - name: Upload .ipa artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MOMO-unsigned-ipa
+          path: out/MOMO-unsigned.ipa
+          retention-days: 14
